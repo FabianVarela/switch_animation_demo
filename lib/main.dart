@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:switch_animation_demo/widget/switch_animation.dart';
 
 void main() => runApp(MyApp());
 
@@ -34,7 +35,9 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[],
+          children: <Widget>[
+            SwitchAnimation(),
+          ],
         ),
       ),
     );
