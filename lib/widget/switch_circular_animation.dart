@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:switch_animation_demo/rebuild_mixin.dart';
+import 'package:switch_animation_demo/mixin/rebuild_mixin.dart';
 
 class SwitchCircularAnimation extends StatefulWidget {
   const SwitchCircularAnimation({
