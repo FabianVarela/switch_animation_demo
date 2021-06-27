@@ -120,7 +120,9 @@ class _SwitchCircularAnimationState extends State<SwitchCircularAnimation>
     final color = Color.lerp(Colors.green, Colors.blueAccent, value)!;
 
     return GestureDetector(
-      onTap: _animationController.forward,
+      onTap: _animationController.status != AnimationStatus.completed
+          ? _animationController.forward
+          : null,
       child: Container(
         width: outerWidth,
         height: _heightSize,
