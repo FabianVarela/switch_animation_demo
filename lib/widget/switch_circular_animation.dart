@@ -7,7 +7,7 @@ class SwitchCircularAnimation extends StatefulWidget {
   const SwitchCircularAnimation({
     Key? key,
     this.size = 200,
-    this.initialValue = true,
+    this.initialValue = false,
   })  : assert(size >= 80 && size <= 200),
         super(key: key);
 
