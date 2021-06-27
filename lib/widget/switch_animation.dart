@@ -1,4 +1,7 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+import 'package:switch_animation_demo/rebuild_mixin.dart';
 
 class SwitchAnimation extends StatefulWidget {
   const SwitchAnimation({
@@ -7,7 +10,8 @@ class SwitchAnimation extends StatefulWidget {
     this.size = 200,
     this.onText = 'ON',
     this.offText = 'OFF',
-  }) : super(key: key);
+  })  : assert(size >= 80 && size <= 200),
+        super(key: key);
 
   final bool initialValue;
   final double size;
@@ -19,7 +23,7 @@ class SwitchAnimation extends StatefulWidget {
 }
 
 class _SwitchAnimationState extends State<SwitchAnimation>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RebuildMixin {
   static const _duration = Duration(milliseconds: 600);
 
   late bool _isSwitched = widget.initialValue;
@@ -29,18 +33,16 @@ class _SwitchAnimationState extends State<SwitchAnimation>
   late final double _innerHeight = _heightSize - (_heightPadding * 2);
 
   late AnimationController _animationController;
-  late Animation<double> _animationOpacity;
-  late Animation<double> _animationCircle;
 
-  late AnimationController _animationAlignmentController;
-  late Animation<Alignment> _animationAlignment;
+  late Animation<double> _trapezeAnimation;
+  late Animation<double> _pseudoLinearAnimation;
 
   @override
   void initState() {
     super.initState();
 
     _animationController = AnimationController(vsync: this, duration: _duration)
-      ..addListener(_rebuild)
+      ..addListener(rebuild)
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed) {
           _isSwitched = !_isSwitched;
@@ -48,92 +50,85 @@ class _SwitchAnimationState extends State<SwitchAnimation>
         }
       });
 
-    _animationAlignmentController =
-        AnimationController(vsync: this, duration: _duration)
-          ..addListener(_rebuild);
-
-    _animationOpacity = TweenSequence<double>(
+    _trapezeAnimation = TweenSequence<double>(
       <TweenSequenceItem<double>>[
         TweenSequenceItem(
           tween: Tween<double>(begin: 0, end: 1).chain(
-            CurveTween(curve: Curves.easeInOutExpo),
+            CurveTween(curve: Curves.linear),
           ),
           weight: 1,
         ),
         TweenSequenceItem(tween: ConstantTween(1), weight: 2),
         TweenSequenceItem(
           tween: Tween<double>(begin: 1, end: 0).chain(
-            CurveTween(curve: Curves.easeInOutExpo),
+            CurveTween(curve: Curves.linear),
           ),
           weight: 1,
         ),
       ],
     ).animate(_animationController);
 
-    _animationCircle = TweenSequence<double>(
+    _pseudoLinearAnimation = TweenSequence<double>(
       <TweenSequenceItem<double>>[
+        TweenSequenceItem(tween: ConstantTween(0), weight: 1),
         TweenSequenceItem(
-          tween: Tween<double>(begin: _innerHeight, end: widget.size).chain(
+          tween: Tween<double>(begin: 0, end: 1).chain(
             CurveTween(curve: Curves.linear),
           ),
-          weight: 1,
+          weight: 2,
         ),
-        TweenSequenceItem(
-          tween: Tween<double>(begin: widget.size, end: _innerHeight).chain(
-            CurveTween(curve: Curves.linear),
-          ),
-          weight: 1,
-        ),
+        TweenSequenceItem(tween: ConstantTween(1), weight: 1),
       ],
     ).animate(_animationController);
-
-    _animationAlignment = TweenSequence<Alignment>(
-      <TweenSequenceItem<Alignment>>[
-        TweenSequenceItem(
-          tween: ConstantTween(Alignment.centerLeft).chain(
-            CurveTween(curve: Curves.linear),
-          ),
-          weight: 1,
-        ),
-        TweenSequenceItem(
-          tween: ConstantTween(Alignment.centerRight).chain(
-            CurveTween(curve: Curves.linear),
-          ),
-          weight: 1,
-        ),
-      ],
-    ).animate(_animationAlignmentController);
   }
 
   @override
   void dispose() {
-    _animationController.removeListener(_rebuild);
+    _animationController.removeListener(rebuild);
+    _animationController.dispose();
+
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final value = _isSwitched
+        ? _pseudoLinearAnimation.value
+        : 1 - _pseudoLinearAnimation.value;
+
+    final color = Color.lerp(Colors.green, Colors.grey, value);
+    final alignment = Alignment.lerp(
+      Alignment.centerRight,
+      Alignment.centerLeft,
+      value,
+    )!;
+
+    final opacityValue = _trapezeAnimation.value.floorToDouble();
+
+    final opacity = lerpDouble(0, 1, opacityValue)!;
+    final width = lerpDouble(
+      _innerHeight,
+      widget.size,
+      _trapezeAnimation.value,
+    );
+
     return GestureDetector(
       onTap: _animationController.status != AnimationStatus.completed
-          ? _onTap
+          ? _animationController.forward
           : null,
       child: Container(
         width: widget.size,
         height: _heightSize,
         padding: EdgeInsets.all(_heightPadding),
         decoration: BoxDecoration(
-          color: Color.lerp(
-            _isSwitched ? Colors.green : Colors.grey,
-            _isSwitched ? Colors.grey : Colors.green,
-            _animationController.value,
-          ),
+          color: color,
           borderRadius: BorderRadius.circular(_heightSize / 2),
         ),
         child: Stack(
-          alignment: _animationAlignment.value,
+          alignment: alignment,
           children: <Widget>[
             Container(
-              width: _animationCircle.value,
+              width: width,
               height: _heightSize,
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -142,11 +137,11 @@ class _SwitchAnimationState extends State<SwitchAnimation>
             ),
             Center(
               child: Opacity(
-                opacity: _animationOpacity.value,
+                opacity: opacity,
                 child: Text(
                   _isSwitched ? widget.offText : widget.onText,
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: widget.size / 6,
                     fontWeight: FontWeight.bold,
                     color: _isSwitched ? Colors.grey : Colors.green,
                   ),
@@ -158,16 +153,4 @@ class _SwitchAnimationState extends State<SwitchAnimation>
       ),
     );
   }
-
-  void _onTap() async {
-    _animationController.forward();
-
-    if (_animationAlignmentController.status == AnimationStatus.completed) {
-      _animationAlignmentController.reverse();
-    } else {
-      _animationAlignmentController.forward();
-    }
-  }
-
-  void _rebuild() => setState(() {});
 }
